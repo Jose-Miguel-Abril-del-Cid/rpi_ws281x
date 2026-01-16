@@ -6,17 +6,16 @@
 #include "ws2811.h"
 
 // ====== AJUSTA ESTO ======
-#define LED_COUNT   8          // <-- cantidad de LEDs de tu tira
-#define LED_GPIO    18         // GPIO 18 (PWM0)
-#define LED_FREQ    WS2811_TARGET_FREQ
+#define LED_COUNT   8          // <-- tu cantidad real de LEDs
+#define LED_GPIO    18         // GPIO 18 (PWM)
 #define LED_DMA     10
 #define LED_INVERT  0
-#define LED_BRIGHTNESS  255    // 0-255
+#define LED_BRIGHTNESS  255
 // =========================
 
 static ws2811_t ledstring =
 {
-    .freq = LED_FREQ,
+    .freq = WS2811_TARGET_FREQ,
     .dmanum = LED_DMA,
     .channel =
     {
@@ -25,16 +24,9 @@ static ws2811_t ledstring =
             .gpionum = LED_GPIO,
             .invert = LED_INVERT,
             .count = LED_COUNT,
-            .strip_type = WS2811_STRIP_GRB,   // WS2812B normalmente es GRB
+            .strip_type = WS2811_STRIP_GRB,  // WS2812B típico
             .brightness = LED_BRIGHTNESS,
-        },
-        [1] =
-        {
-            .gpionum = 0,
-            .invert = 0,
-            .count = 0,
-            .brightness = 0,
-        },
+        }
     },
 };
 
@@ -50,7 +42,6 @@ static void cleanup(int signum)
 
 static uint32_t make_color(uint8_t r, uint8_t g, uint8_t b)
 {
-    // ws2811 usa 0x00RRGGBB internamente (el orden real lo aplica strip_type)
     return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
 }
 
