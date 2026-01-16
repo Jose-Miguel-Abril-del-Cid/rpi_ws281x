@@ -471,7 +471,7 @@ int rp1_ws281x_pwm_probe(struct platform_device *pdev) {
     return 0;
 }
 
-int rp1_ws281x_pwm_remove(struct platform_device *pdev) {
+void rp1_ws281x_pwm_remove(struct platform_device *pdev) {
     rp1_ws281x_pwm_cleanup();
 
     misc_deregister(&rp1_ws281x_pwm.mdev);
@@ -482,7 +482,7 @@ int rp1_ws281x_pwm_remove(struct platform_device *pdev) {
 
     rp1_ws281x_pwm.pdev = NULL;
 
-    return 0;
+    return;
 }
 
 static const struct of_device_id rp1_ws281x_pwm_of_match[] = {
