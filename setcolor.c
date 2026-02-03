@@ -6,7 +6,7 @@
 #include "ws2811.h"
 
 // ====== AJUSTA ESTO ======
-#define LED_COUNT   8          // <-- tu cantidad real de LEDs
+#define LED_COUNT   11          // <-- tu cantidad real de LEDs
 #define LED_GPIO    18         // GPIO 18 (PWM)
 #define LED_DMA     10
 #define LED_INVERT  0
