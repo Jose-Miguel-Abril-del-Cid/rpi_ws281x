@@ -1,54 +1,16 @@
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <signal.h>
 #include <unistd.h>
-#include "ws2811.h"
+#include <string.h>
+#include <errno.h>
 
-// ====== AJUSTA ESTO ======
-#define LED_COUNT   11          // <-- tu cantidad real de LEDs
-#define LED_GPIO    18         // GPIO 18 (PWM)
-#define LED_DMA     10
-#define LED_INVERT  0
-#define LED_BRIGHTNESS  255
-// =========================
+#define LED_COUNT 11
+#define DEV_PATH "/dev/ws281x_pwm"
 
-static ws2811_t ledstring =
-{
-    .freq = WS2811_TARGET_FREQ,
-    .dmanum = LED_DMA,
-    .channel =
-    {
-        [0] =
-        {
-            .gpionum = LED_GPIO,
-            .invert = LED_INVERT,
-            .count = LED_COUNT,
-            .strip_type = WS2811_STRIP_GRB,  // WS2812B típico
-            .brightness = LED_BRIGHTNESS,
-        }
-    },
-};
-
-static void cleanup(int signum)
-{
-    for (int i = 0; i < LED_COUNT; i++) {
-        ledstring.channel[0].leds[i] = 0;
-    }
-    ws2811_render(&ledstring);
-    ws2811_fini(&ledstring);
-    _exit(0);
-}
-
-static uint32_t make_color(uint8_t r, uint8_t g, uint8_t b)
-{
-    return ((uint32_t)r << 16) | ((uint32_t)g << 8) | (uint32_t)b;
-}
-
-int main(int argc, char *argv[])
-{
+int main(int argc, char **argv) {
     if (argc != 4) {
-        fprintf(stderr, "Uso: %s R G B (0-255)\n", argv[0]);
+        fprintf(stderr, "Usage: %s R G B\n", argv[0]);
         return 2;
     }
 
@@ -56,32 +18,29 @@ int main(int argc, char *argv[])
     int g = atoi(argv[2]);
     int b = atoi(argv[3]);
 
-    if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
-        fprintf(stderr, "RGB fuera de rango 0-255\n");
-        return 2;
-    }
+    if (r < 0) r = 0; if (r > 255) r = 255;
+    if (g < 0) g = 0; if (g > 255) g = 255;
+    if (b < 0) b = 0; if (b > 255) b = 255;
 
-    signal(SIGINT, cleanup);
-    signal(SIGTERM, cleanup);
-
-    ws2811_return_t ret = ws2811_init(&ledstring);
-    if (ret != WS2811_SUCCESS) {
-        fprintf(stderr, "ws2811_init failed: %s\n", ws2811_get_return_t_str(ret));
+    int fd = open(DEV_PATH, O_WRONLY);
+    if (fd < 0) {
+        fprintf(stderr, "open(%s): %s\n", DEV_PATH, strerror(errno));
         return 1;
     }
 
-    uint32_t c = make_color((uint8_t)r, (uint8_t)g, (uint8_t)b);
+    unsigned char buf[LED_COUNT * 3];
     for (int i = 0; i < LED_COUNT; i++) {
-        ledstring.channel[0].leds[i] = c;
+        buf[i*3 + 0] = (unsigned char)r;
+        buf[i*3 + 1] = (unsigned char)g;
+        buf[i*3 + 2] = (unsigned char)b;
     }
 
-    ret = ws2811_render(&ledstring);
-    if (ret != WS2811_SUCCESS) {
-        fprintf(stderr, "ws2811_render failed: %s\n", ws2811_get_return_t_str(ret));
-        ws2811_fini(&ledstring);
+    ssize_t n = write(fd, buf, sizeof(buf));
+    if (n < 0) {
+        fprintf(stderr, "write(%s): %s\n", DEV_PATH, strerror(errno));
+        close(fd);
         return 1;
     }
-
-    ws2811_fini(&ledstring);
+    close(fd);
     return 0;
 }
