@@ -37,6 +37,8 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <linux/types.h>
 #include <linux/spi/spidev.h>
@@ -968,8 +970,25 @@ ws2811_return_t ws2811_init(ws2811_t *ws2811)
     ws2811_device_t *device;
     const rpi_hw_t *rpi_hw;
     int chan;
+    int fd = open("/dev/ws281x_pwm", O_WRONLY);
+    if (fd >= 0) {
+        device->driver_mode = KERNEL;
+        device->driver_fd = fd;
 
-    ws2811->rpi_hw = rpi_hw_detect();
+        // Saltamos completamente la detección de hardware
+        // porque estamos usando el driver kernel rp1_ws281x_pwm
+        goto skip_hw_detect;
+    }
+
+    skip_hw_detect:
+
+    if (device->driver_mode != KERNEL) {
+        rpi_hw_t *rpi_hw = rpi_hw_detect();
+        if (!rpi_hw) {
+            fprintf(stderr, "Hardware revision is not supported\n");
+            return WS2811_ERROR_HW_NOT_SUPPORTED;
+        }
+    }
     if (!ws2811->rpi_hw)
     {
         return WS2811_ERROR_HW_NOT_SUPPORTED;
