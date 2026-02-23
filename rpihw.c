@@ -594,27 +594,51 @@ const rpi_hw_t *rpi_hw_detect(void)
     // On ARM64, read revision from /proc/device-tree as it is not shown in
     // /proc/cpuinfo
     FILE *f = fopen("/proc/device-tree/system/linux,revision", "r");
-    if (!f)
+    if (f)
     {
-        return NULL;
+        size_t read = fread(&rev, 1, sizeof(uint32_t), f);
+        fclose(f);
+        if (read == sizeof(uint32_t)) {
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+            rev = bswap_32(rev);  // linux,revision appears to be in big endian
+#endif
+            for (i = 0; i < (sizeof(rpi_hw_info) / sizeof(rpi_hw_info[0])); i++)
+            {
+                if (rev == rpi_hw_info[i].hwver)
+                {
+                    return &rpi_hw_info[i];
+                }
+            }
+        }
+        // si no matchea, seguimos al fallback
     }
-    size_t read = fread(&rev, 1, sizeof(uint32_t), f);
-    if (read != sizeof(uint32_t))
-        goto done;
-    #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        rev = bswap_32(rev);  // linux,revision appears to be in big endian
-    #endif
 
-    for (i = 0; i < (sizeof(rpi_hw_info) / sizeof(rpi_hw_info[0])); i++)
+    // --- FALLBACK: detectar por model (evita dependencia de revision ID) ---
     {
-        uint32_t hwver = rpi_hw_info[i].hwver;
-        if (rev == hwver)
-        {
-            result = &rpi_hw_info[i];
+        const char *paths[] = {
+            "/proc/device-tree/model",
+            "/sys/firmware/devicetree/base/model",
+        };
 
-            goto done;
+        char model[256] = {0};
+        for (unsigned p = 0; p < sizeof(paths)/sizeof(paths[0]); p++) {
+            FILE *mf = fopen(paths[p], "r");
+            if (!mf) continue;
+            size_t n = fread(model, 1, sizeof(model)-1, mf);
+            fclose(mf);
+            model[n] = '\0';
+
+            if (strstr(model, "Raspberry Pi 5")) {
+                for (i = 0; i < (sizeof(rpi_hw_info) / sizeof(rpi_hw_info[0])); i++) {
+                    if (rpi_hw_info[i].type == RPI_HWVER_TYPE_PI5) {
+                        return &rpi_hw_info[i];
+                    }
+                }
+            }
         }
     }
+
+    return NULL;
 #else
     FILE *f = fopen("/proc/cpuinfo", "r");
     char line[LINE_WIDTH_MAX];
