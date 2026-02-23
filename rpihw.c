@@ -586,7 +586,6 @@ static const rpi_hw_t rpi_hw_info[] = {
 
 const rpi_hw_t *rpi_hw_detect(void)
 {
-    const rpi_hw_t *result = NULL;
     uint32_t rev;
     unsigned i;
 
@@ -598,6 +597,7 @@ const rpi_hw_t *rpi_hw_detect(void)
     {
         size_t read = fread(&rev, 1, sizeof(uint32_t), f);
         fclose(f);
+
         if (read == sizeof(uint32_t)) {
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
             rev = bswap_32(rev);  // linux,revision appears to be in big endian
@@ -610,7 +610,6 @@ const rpi_hw_t *rpi_hw_detect(void)
                 }
             }
         }
-        // si no matchea, seguimos al fallback
     }
 
     // --- FALLBACK: detectar por model (evita dependencia de revision ID) ---
@@ -639,7 +638,9 @@ const rpi_hw_t *rpi_hw_detect(void)
     }
 
     return NULL;
+
 #else
+    const rpi_hw_t *result = NULL;
     FILE *f = fopen("/proc/cpuinfo", "r");
     char line[LINE_WIDTH_MAX];
 
@@ -678,15 +679,14 @@ const rpi_hw_t *rpi_hw_detect(void)
                 if (rev == hwver)
                 {
                     result = &rpi_hw_info[i];
-
                     goto done;
                 }
             }
         }
     }
-#endif
+
 done:
     fclose(f);
-
     return result;
+#endif
 }
