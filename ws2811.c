@@ -967,28 +967,10 @@ int kernel_init(ws2811_t *ws2811) {
  */
 ws2811_return_t ws2811_init(ws2811_t *ws2811)
 {
-    ws2811_device_t *device;
     const rpi_hw_t *rpi_hw;
     int chan;
-    int fd = open("/dev/ws281x_pwm", O_WRONLY);
-    if (fd >= 0) {
-        device->driver_mode = KERNEL;
-        device->driver_fd = fd;
 
-        // Saltamos completamente la detección de hardware
-        // porque estamos usando el driver kernel rp1_ws281x_pwm
-        goto skip_hw_detect;
-    }
-
-    skip_hw_detect:
-
-    if (device->driver_mode != KERNEL) {
-        rpi_hw_t *rpi_hw = rpi_hw_detect();
-        if (!rpi_hw) {
-            fprintf(stderr, "Hardware revision is not supported\n");
-            return WS2811_ERROR_HW_NOT_SUPPORTED;
-        }
-    }
+    ws2811->rpi_hw = rpi_hw_detect();
     if (!ws2811->rpi_hw)
     {
         return WS2811_ERROR_HW_NOT_SUPPORTED;
@@ -1001,7 +983,7 @@ ws2811_return_t ws2811_init(ws2811_t *ws2811)
         return WS2811_ERROR_OUT_OF_MEMORY;
     }
     memset(ws2811->device, 0, sizeof(*ws2811->device));
-    device = ws2811->device;
+    ws2811_device_t *device = ws2811->device;
 
     device->mbox.handle = -1;
     device->spi_fd = -1;
@@ -1012,7 +994,25 @@ ws2811_return_t ws2811_init(ws2811_t *ws2811)
         return WS2811_ERROR_ILLEGAL_GPIO;
     }
 
+    // Si el modo elegido es KERNEL, abre el device node y salta a kernel_init
+    if (device->driver_mode == KERNEL)
+    {
+        int fd = open("/dev/ws281x_pwm", O_WRONLY);
+        if (fd < 0)
+        {
+            ws2811_cleanup(ws2811);
+            return WS2811_ERROR_GENERIC;
+        }
+        device->driver_fd = fd;
+        return kernel_init(ws2811);
+    }
+
     device->max_count = max_channel_led_count(ws2811);
+
+    if (device->driver_mode == SPI)
+    {
+        return spi_init(ws2811);
+    }
 
     switch(device->driver_mode) {
         case KERNEL:
