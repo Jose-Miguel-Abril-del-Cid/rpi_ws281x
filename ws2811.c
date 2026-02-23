@@ -891,8 +891,8 @@ int kernel_init(ws2811_t *ws2811) {
 
     device->driver_fd = open("/dev/ws281x_pwm", O_RDWR);
     if (device->driver_fd < 0) {
-        perror("open()");
-        return WS2811_ERROR_HW_NOT_SUPPORTED;
+        perror("open(/dev/ws281x_pwm)");
+        return WS2811_ERROR_GENERIC; // <- no es HW revision
     }
 
     // TODO:  Support all the PWM channels
@@ -938,13 +938,13 @@ int kernel_init(ws2811_t *ws2811) {
         channel->gshift = (channel->strip_type >> 8)  & 0xff;
         channel->bshift = (channel->strip_type >> 0)  & 0xff;
     }
-
-    ws2811->device->pxl_raw = malloc(PWM_BYTE_COUNT(ws2811->device->max_count, ws2811->freq));
+    
+    ws2811->device->pxl_raw = malloc(PCM_BYTE_COUNT(ws2811->device->max_count, ws2811->freq));
     if (!ws2811->device->pxl_raw) {
         return WS2811_ERROR_OUT_OF_MEMORY;
     }
 
-    pwm_raw_init(ws2811);
+    pcm_raw_init(ws2811);
 
     // TODO:  Initialize the GPIO pins
 
@@ -995,19 +995,12 @@ ws2811_return_t ws2811_init(ws2811_t *ws2811)
     }
 
     // Si el modo elegido es KERNEL, abre el device node y salta a kernel_init
+    device->max_count = max_channel_led_count(ws2811);
+
     if (device->driver_mode == KERNEL)
     {
-        int fd = open("/dev/ws281x_pwm", O_WRONLY);
-        if (fd < 0)
-        {
-            ws2811_cleanup(ws2811);
-            return WS2811_ERROR_GENERIC;
-        }
-        device->driver_fd = fd;
         return kernel_init(ws2811);
     }
-
-    device->max_count = max_channel_led_count(ws2811);
 
     if (device->driver_mode == SPI)
     {
