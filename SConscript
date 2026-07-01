@@ -59,8 +59,9 @@ for src in srcs:
    objs.append(tools_env.Object(src))
 
 test = tools_env.Program('test', objs + tools_env['LIBS'])
+setcolor = tools_env.Program('setcolor', ['setcolor.c'] + tools_env['LIBS'])
 
-Default([test, ws2811_lib])
+Default([test, setcolor, ws2811_lib])
 
 package_version = "1.1.0-1"
 package_name = 'libws2811_%s' % package_version

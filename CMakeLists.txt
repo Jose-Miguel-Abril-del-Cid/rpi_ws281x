@@ -13,11 +13,13 @@ project(rpi_ws281x VERSION ${PROJECT_VERSION})
 
 option(BUILD_SHARED "Build as shared library" OFF)
 option(BUILD_TEST "Build test application" ON)
+option(BUILD_SETCOLOR "Build setcolor utility" ON)
 
 set(CMAKE_C_STANDARD 11)
 
 set(LIB_TARGET ws2811)
 set(TEST_TARGET test)
+set(SETCOLOR_TARGET setcolor)
 
 set(LIB_PUBLIC_HEADERS
     ws2811.h
@@ -85,4 +87,12 @@ if(BUILD_TEST)
 
     add_executable(${TEST_TARGET} ${TEST_SOURCES})
     target_link_libraries(${TEST_TARGET} ${LIB_TARGET})
+endif()
+
+if(BUILD_SETCOLOR)
+    add_executable(${SETCOLOR_TARGET} setcolor.c)
+    target_link_libraries(${SETCOLOR_TARGET} ${LIB_TARGET})
+    install(TARGETS ${SETCOLOR_TARGET}
+        RUNTIME DESTINATION bin
+    )
 endif()
